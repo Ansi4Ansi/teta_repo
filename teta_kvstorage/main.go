@@ -2,12 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 )
 
 type SafeContext struct {
 	mu sync.Mutex
-	v  map[string]int
 }
 
 type KVStorage interface {
@@ -21,6 +21,9 @@ func (c *SafeContext) Get(ctx context.Context, key string) (value interface{}, e
 	defer c.mu.Unlock()
 	if ctx != nil {
 		value = ctx.Value(key)
+		err = nil
+	} else {
+		err = errors.New("Empty Context")
 	}
 	return
 }
@@ -28,11 +31,20 @@ func (c *SafeContext) Put(ctx context.Context, key string, val interface{}) erro
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ctx != nil {
-		ctx.WithValue(ctx, key, val)
+		context.WithValue(ctx, key, val)
+		return nil
+	} else {
+		return errors.New("Empty Context")
 	}
 }
 
 func (c *SafeContext) Delete(ctx context.Context, key string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if ctx != nil {
+		context.Delete(ctx, key)
+		return nil
+	} else {
+		return errors.New("Empty Context")
+	}
 }
