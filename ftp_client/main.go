@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/Ansi4Ansi/ftp_client/ftp"
+	"github.com/Ansi4Ansi/teta_repo/ftp_client/ftp"
 )
 
 func main() {
