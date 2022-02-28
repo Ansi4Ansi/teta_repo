@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func getTransferConn(port string) *net.TCPConn {
@@ -68,8 +67,6 @@ func handleConn(conn net.Conn) {
 			continue
 		}
 
-		fmt.Print(time.Now().Format(time.RFC3339) + " " + ip + " " + message)
-
 		switch command {
 		case "USER":
 			user = arg
@@ -81,16 +78,7 @@ func handleConn(conn net.Conn) {
 			} else {
 				fmt.Fprintf(conn, "530 Authentication failed.\n")
 			}
-		case "SYST":
-			fmt.Fprintf(conn, "215 UNIX Type: L8\n")
-		case "FEAT":
-			fmt.Fprintf(conn, "211-Supported:\n SIZE\n ESPV\n UTF8\n211 End\n")
-		case "CWD":
-			fmt.Fprintf(conn, "250 \"/\" is the current directory.\n")
-		case "PWD":
-			fmt.Fprintf(conn, "257 \"/\" is the remote directory.\n")
-		case "TYPE":
-			fmt.Fprintf(conn, "200 Type set to: Binary.\n")
+
 		case "SIZE":
 			size := int64(0)
 			filename := getFilename(arg)
@@ -153,8 +141,7 @@ func handleConn(conn net.Conn) {
 }
 
 func main() {
-	rand.Seed(time.Now().UTC().UnixNano())
-	server, _ := net.Listen("tcp", ":2121")
+	server, _ := net.Listen("tcp", ":2132")
 	defer server.Close()
 
 	for {

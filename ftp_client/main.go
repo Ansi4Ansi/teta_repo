@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Ansi4Ansi/teta_repo/ftp_client/ftp"
@@ -15,16 +14,11 @@ func main() {
 	}
 	defer conn.Close()
 
-	err = conn.Login("user", "password")
+	err = conn.Login("test_ftp", "test_password")
 	if err != nil {
 		fmt.Println("login failed, error:", err)
 		return
 	}
 	defer conn.Quit()
 
-	source := bytes.NewBuffer([]byte("This is the file content."))
-	err = conn.Upload(source, "/example_upload.txt")
-	if err != nil {
-		fmt.Println("unable to upload file, error:", err)
-	}
 }

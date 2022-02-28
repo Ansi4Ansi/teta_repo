@@ -12,24 +12,22 @@ import (
 	"strings"
 )
 
-// Connection is the network connection to an FTP server. The Connect functions
-// return a *Connection which you have to Close after usage.
 type Connection struct {
 	conn         net.Conn
-	logger       Logger
+	//logger       Logger
 	transferType transferType
 }
 
 // Logger can be used to log the raw messages on the FTP control connection.
-type Logger interface {
+//type Logger interface {
 	// SentFTP is called after a message is sent to the FTP server on the control
 	// connection. If an error occurred during the sent it is given to the Logger
 	// as well.
-	SentFTP(msg []byte, err error)
+	//SentFTP(msg []byte, err error)
 	// ReceivedFTP is called after a message is received from FTP server on the control
 	// connection. If an error occurred while receiving it is given to the Logger as well.
-	ReceivedFTP(response []byte, err error)
-}
+	//ReceivedFTP(response []byte, err error)
+//}
 
 // Connect establishes a connection to the given host on the given port.
 // The standard FTP port is 21.
@@ -41,13 +39,13 @@ func Connect(host string, port uint16) (*Connection, error) {
 // All messages sent and reveived over the control connection are additionally
 // passed to the given Logger.
 // The standard FTP port is 21.
-func ConnectLogging(host string, port uint16, logger Logger) (*Connection, error) {
+func ConnectLogging(host string, port uint16) (*Connection, error) {
 	addr := fmt.Sprintf("%s:%d", host, port)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	return newConnection(conn, logger)
+	return newConnection(conn)
 }
 
 // ConnectOn uses the given connection as an FTP control connection. This can be
@@ -59,7 +57,7 @@ func ConnectOn(conn net.Conn) (*Connection, error) {
 // ConnectLoggingOn uses the given connection as an FTP control connection. This
 // can be used for setting connection parameters like time-outs. It also sets
 // the logger.
-func ConnectLoggingOn(conn net.Conn, logger Logger) (*Connection, error) {
+func ConnectLoggingOn(conn net.Conn (*Connection, error) {
 	return newConnection(conn, logger)
 }
 
@@ -70,7 +68,7 @@ const (
 	transferBinary              = "binary"
 )
 
-func newConnection(conn net.Conn, logger Logger) (*Connection, error) {
+func newConnection(conn net.Conn) (*Connection, error) {
 	c := &Connection{conn, logger, transferASCII}
 	resp, code, err := c.receive()
 	if err != nil {
@@ -194,10 +192,7 @@ func extractCode(msg []byte) responseCode {
 	return responseCode(msg[:3])
 }
 
-// Login sends the given user and, if required,  password to the FTP server.
-// If no password is required (the FTP server will respond accordingly) no
-// password will be sent. In this case just pass an empty string for the password.
-// The FTP commands this sends are USER and (optionally) PASS.
+
 func (c *Connection) Login(user, password string) error {
 	err := c.send("USER", user)
 	if err != nil {
@@ -236,66 +231,19 @@ func (c *Connection) executeGetResponse(expectedCode responseCode, args ...strin
 	return nil, errorMessage(args[0], resp)
 }
 
-// ChangeWorkingDirTo sets the given path as the working directory. The path
-// argument is sent as is so make sure to surround the string with quotes if
-// needed.
-// The FTP command this sends is CWD
+
 func (c *Connection) ChangeWorkingDirTo(path string) error {
 	return c.execute(fileActionCompleted, "CWD", path)
 }
 
-// ChangeDirUp moves the current working directory up one folder (like
-// a 'cd ..' in the console).
-// The FTP command this sends is CDUP.
-func (c *Connection) ChangeDirUp() error {
-	return c.execute(commandOk, "CDUP")
-}
-
-// StructureMount mounts the given path. The path argument is sent as is so
-// make sure to surround the string with quotes if needed.
-// The FTP command this sends is SMNT.
-func (c *Connection) StructureMount(path string) error {
-	return c.execute(fileActionCompleted, "SMNT", path)
-}
-
-// Reinitialize closes the current session and starts over again. You may want
-// to Login again after this command.
-// The FTP command this sends is REIN.
-func (c *Connection) Reinitialize() error {
-	return c.execute(serviceReadyForNewUser, "REIN")
-}
-
-// Quit closes the current FTP session. It does not however close the underlying
-// TCP connection. For that you need to call Close once you are done.
-// The FTP command this sends is QUIT.
 func (c *Connection) Quit() error {
 	return c.execute(serviceClosingControlConnection, "QUIT")
 }
 
-// RenameFromTo changes the name of a file (from) to the new name (to). The paths
-// are sent as is so make sure to surround the strings with quotes if needed.
-// The FTP commands this sends are RNFR and RNTO.
-func (c *Connection) RenameFromTo(from, to string) error {
-	err := c.execute(fileActionPending, "RNFR", from)
-	if err != nil {
-		return err
-	}
-	return c.execute(fileActionCompleted, "RNTO", to)
-}
-
-// Delete erases the given path from the FTP server. The path argument is sent as
-// is so make sure to surround the string with quotes if needed.
-// The FTP command this sends is DELE.
 func (c *Connection) Delete(path string) error {
 	return c.execute(fileActionCompleted, "DELE", path)
 }
 
-// MakeDirectory creates a new directory under the given path. Since this path
-// may be relative to the current working directory and possibly not suited for
-// a call to ChangeWorkingDirTo, on success (err is nil) the function returns
-// the path to the newly created directory. The path is sent as is so make sure
-// to surround the string with quotes if needed.
-// The FTP command this sends is MKD.
 func (c *Connection) MakeDirectory(path string) (string, error) {
 	resp, err := c.executeGetResponse(pathNameCreated, "MKD", path)
 	if err != nil {
@@ -304,46 +252,14 @@ func (c *Connection) MakeDirectory(path string) (string, error) {
 	return getPathFromResponse(resp)
 }
 
-// RemoveDirectory erases the directory under the given path. The path is sent
-// as is so make sure to surround the string with quotes if needed.
-// The FTP command this sends is RMD.
 func (c *Connection) RemoveDirectory(path string) error {
 	return c.execute(fileActionCompleted, "RMD", path)
 }
 
-// NoOperation sends a message to the FTP server and makes sure the repsonse is
-// OK. This can be used as a kind of ping to see if the server is still responding.
-// The FTP command this sends is NOOP.
 func (c *Connection) NoOperation() error {
 	return c.execute(commandOk, "NOOP")
 }
 
-// Help returns a human readable help message from the FTP server. This message
-// does not contain any control codes.
-// The FTP command this sends is HELP.
-func (c *Connection) Help() (string, error) {
-	return c.HelpAbout("")
-}
-
-// HelpAbout returns a human readable help message about the given topic from
-// the FTP server. This message does not contain any control codes.
-// The FTP command this sends is HELP.
-func (c *Connection) HelpAbout(topic string) (string, error) {
-	err := c.sendWithoutEmptyString("HELP", topic)
-	if err != nil {
-		return "", err
-	}
-	resp, code, err := c.receive()
-	if err != nil {
-		return "", err
-	}
-	if code == systemStatusOrHelpReply || code == helpMessage {
-		return removeControlSymbols(resp), nil
-	}
-	return "", errorMessage("HELP", resp)
-}
-
-// removes the control codes and the last line feed (\r\n) from the response
 func removeControlSymbols(resp []byte) string {
 	noCodeOrNewLine := strings.TrimSuffix(string(resp[4:]), "\r\n")
 	if isSingleLineResponse(resp) {
@@ -356,17 +272,10 @@ func removeControlSymbols(resp []byte) string {
 	return strings.TrimSuffix(all, "\r\n")
 }
 
-// Status returns general status information about the FTP server process. The
-// resulting string does not contain any control codes.
-// The FTP command this sends is STAT.
 func (c *Connection) Status() (StatusType, string, error) {
 	return c.StatusOf("")
 }
 
-// StatusOf returns status information about the given path. It behaves like
-// ListFilesIn if called with the path. The resulting string does not contain
-// any control codes.
-// The FTP command this sends is STAT.
 func (c *Connection) StatusOf(path string) (StatusType, string, error) {
 	err := c.sendWithoutEmptyString("STAT", path)
 	if err != nil {
@@ -395,7 +304,6 @@ func statusTypeOfCode(code responseCode) (typ StatusType, ok bool) {
 	return "", false
 }
 
-// StatusType describes the result of a Status or StatusOf command.
 type StatusType string
 
 const (
@@ -404,9 +312,6 @@ const (
 	DirectoryStatus            = "directory status"
 )
 
-// System describes the system on which the FTP server is running. This may
-// include the operating system and other information.
-// The FTP command this sends is SYST.
 func (c *Connection) System() (string, error) {
 	resp, err := c.executeGetResponse(systemName, "SYST")
 	if err != nil {
@@ -415,8 +320,6 @@ func (c *Connection) System() (string, error) {
 	return removeControlSymbols(resp), nil
 }
 
-// PrintWorkingDirectory returns the current working directory.
-// The FTP command this sends is PWD.
 func (c *Connection) PrintWorkingDirectory() (string, error) {
 	resp, err := c.executeGetResponse(pathNameCreated, "PWD")
 	if err != nil {
@@ -425,10 +328,6 @@ func (c *Connection) PrintWorkingDirectory() (string, error) {
 	return getPathFromResponse(resp)
 }
 
-// Abort aborts the currently running file transaction (if any). If no file
-// transfer is being executed or if shutting down the data connection was
-// successful, the returned error will be nil.
-// The FTP command this sends is ABOR.
 func (c *Connection) Abort() error {
 	resp, code, err := c.sendAndReceive("ABOR")
 	if err != nil {
@@ -486,40 +385,6 @@ func (c *Connection) setTransferTypeTo(t transferType, symbol string) error {
 		c.transferType = t
 	}
 	return err
-}
-
-// ListFiles returns detailed information about the current working directory.
-// The result does not contain any control codes. The format of the result depends
-// on the implementation of the server so no automatic parsing happens here.
-// The FTP command this sends is LIST.
-func (c *Connection) ListFiles() (string, error) {
-	return c.ListFilesIn("")
-}
-
-// ListFilesIn returns detailed information about the given file or directory.
-// The result does not contain any control codes. The format of the result depends
-// on the implementation of the server so no automatic parsing happens here.
-// The path is sent as is so make sure to surround the string with quotes if needed.
-// The FTP command this sends is LIST.
-func (c *Connection) ListFilesIn(path string) (string, error) {
-	return c.readListCommandData("LIST", path)
-}
-
-// ListFileNames returns a list of file names in the current working directory.
-// The FTP command this sends is NLST.
-func (c *Connection) ListFileNames() ([]string, error) {
-	return c.ListFileNamesIn("")
-}
-
-// ListFileNamesIn returns a list of file names in the given directory.
-// The path is sent as is so make sure to surround the string with quotes if needed.
-// The FTP command this sends is NLST.
-func (c *Connection) ListFileNamesIn(path string) ([]string, error) {
-	data, err := c.readListCommandData("NLST", path)
-	if err != nil {
-		return nil, err
-	}
-	return parseNLST(data), nil
 }
 
 func parseNLST(data string) []string {
@@ -593,10 +458,6 @@ func getAddressOfPasvResponse(msg []byte) (string, error) {
 	return ip + ":" + port, nil
 }
 
-// Download writes the contents of the file at the given path into the given
-// writer.
-// It reads the file as binary data from the FTP server in passive mode.
-// The FTP command this sends is RETR.
 func (c *Connection) Download(path string, dest io.Writer) error {
 	err := c.setBinaryTransfer()
 	if err != nil {
@@ -639,31 +500,8 @@ func (c *Connection) Download(path string, dest io.Writer) error {
 	return nil
 }
 
-// Upload writes the contents of the given source to a file at the given path
-// on the server. If the file was there before, it is overwritten. Otherwise a
-// new file is created.
-// The file is written as binary in passive mode.
-// The FTP command this sends is STOR.
 func (c *Connection) Upload(source io.Reader, path string) error {
 	return c.upload("STOR", path, source)
-}
-
-// UploadUnique writes the contents of the given source to a file at the given
-// path on the server. If the file was there before, it is overwritten.
-// Otherwise a new file is created.
-// It file is written as binary in passive mode.
-// The FTP command this sends is STOU.
-func (c *Connection) UploadUnique(source io.Reader) error {
-	return c.upload("STOU", "", source)
-}
-
-// Append appends the contents of the given source to a file at the given path
-// on the server. If the file was there before, it is overwritten. Otherwise a
-// new file is created.
-// It file is written as binary in passive mode.
-// The FTP command this sends is APPE.
-func (c *Connection) Append(source io.Reader, path string) error {
-	return c.upload("APPE", path, source)
 }
 
 func (c *Connection) upload(cmd, path string, source io.Reader) error {
