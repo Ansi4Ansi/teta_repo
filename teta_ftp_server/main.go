@@ -42,10 +42,10 @@ func getFilename(arg string) string {
 
 func handleConn(conn net.Conn) {
 	user := "anonymous"
-	password := "anonymous"
+	password := "a@example.com"
 
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-	port := strconv.Itoa(6000 + rand.Intn(1000))
+	port := strconv.Itoa(8000 + rand.Intn(1024))
 
 	transferConn := (*net.TCPConn)(nil)
 	buff := bufio.NewReader(conn)

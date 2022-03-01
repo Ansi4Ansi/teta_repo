@@ -19,7 +19,6 @@ type FTP struct {
 	cmd     string
 	Code    int
 	Message string
-	Debug   bool
 	conn    net.Conn
 }
 
