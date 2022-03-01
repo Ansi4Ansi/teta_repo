@@ -42,7 +42,7 @@ func (c *SafeContext) Delete(ctx context.Context, key string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ctx != nil {
-		context.Delete(ctx, key)
+		context.WithValue(ctx, key, nil)
 		return nil
 	} else {
 		return errors.New("Empty Context")
